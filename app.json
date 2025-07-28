@@ -4,7 +4,7 @@
     "slug": "student-checkin-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icons.png",
     "scheme": "studentpunch",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
