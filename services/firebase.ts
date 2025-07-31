@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';  // ✅ Avoid getReactNativePersistence unless you're using modular setup
 import { getFirestore, serverTimestamp } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBPbpbSo7XVRqXXdn6LChrJcrrQKqL5-PU",
