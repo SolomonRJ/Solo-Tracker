@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MapPin, CheckCircle, Camera } from 'lucide-react-native';
+import { MapPin, CircleCheck as CheckCircle, Camera } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { LocationService } from '@/services/LocationService';
 import { FirestoreService } from '@/services/FirestoreService';
