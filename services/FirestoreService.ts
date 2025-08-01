@@ -20,8 +20,6 @@ export interface CheckInData {
   latitude: number;
   longitude: number;
   address?: string;
-  photoURL?: string;
-  userName?: string;
 }
 
 export interface CheckInRecord extends CheckInData {

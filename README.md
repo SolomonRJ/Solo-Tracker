@@ -4,10 +4,9 @@ A React Native mobile app built with Expo for student attendance tracking with b
 
 ## Features
 
-- **Multi-Auth Support**: Email/password and Google Sign-In via Firebase Auth
+- **Email Authentication**: Firebase Auth integration for secure login
 - **Biometric Security**: FaceID/Fingerprint authentication using expo-local-authentication
 - **GPS Location Tracking**: Precise location capture using expo-location
-- **Photo Upload**: Circular camera interface with Firebase Storage integration
 - **Firebase Firestore**: Cloud storage for check-in records
 - **Clean UI**: Minimalist black and white design
 - **Tab Navigation**: Intuitive user interface with multiple screens
@@ -19,8 +18,6 @@ A React Native mobile app built with Expo for student attendance tracking with b
 - Firebase (Auth + Firestore)
 - expo-local-authentication
 - expo-location
-- @react-native-google-signin/google-signin
-- expo-image-picker & expo-image-manipulator
 - react-native-paper
 - Lucide React Native (Icons)
 
@@ -35,11 +32,9 @@ A React Native mobile app built with Expo for student attendance tracking with b
 
 **Next steps to complete Firebase setup:**
 1. Go to [Firebase Console](https://console.firebase.google.com) → studentpunchapp project
-2. Enable **Authentication** with Email/Password and Google providers
+2. Enable **Authentication** with Email/Password provider
 3. Create a **Firestore database** in production mode
-4. Enable **Firebase Storage** for photo uploads
-5. Add the security rules provided below
-6. Configure Google Sign-In with your web client ID in AuthService.ts
+4. Add the security rules provided below
 
 ### 2. Firestore Security Rules
 
@@ -59,21 +54,7 @@ service cloud.firestore {
 }
 ```
 
-### 3. Firebase Storage Security Rules
-
-Add these security rules to your Firebase Storage:
-
-```javascript
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /checkins/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
-```
-### 4. Development
+### 3. Development
 
 1. Install dependencies:
    ```bash
@@ -87,7 +68,7 @@ service firebase.storage {
 
 3. Test the app using Expo Go on your mobile device or iOS/Android simulator
 
-### 5. Building for Production
+### 4. Building for Production
 
 For production builds, you'll need to create development builds with Expo Dev Client since this app uses native modules:
 
@@ -126,10 +107,10 @@ components/
 
 ## Usage
 
-1. **Login**: Sign in with email/password or Google account
+1. **Login**: Enter email and password to authenticate
 2. **Biometric Auth**: Complete biometric verification (optional)
-3. **Check-In**: Take a selfie and record attendance with location
-4. **History**: View previous check-ins with photos, timestamps and coordinates
+3. **Check-In**: Tap "Punch In" to record attendance with location
+4. **History**: View previous check-ins with timestamps and coordinates
 5. **Profile**: Manage account and sign out
 
 ## Security Features
