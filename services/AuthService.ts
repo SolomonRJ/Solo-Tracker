@@ -11,7 +11,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // Configure Google Sign-In
 GoogleSignin.configure({
-  webClientId: '1097095993421-YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual web client ID
+  webClientId: '1097095993421-5uoipvhjaaphe79h4dnfe3796u3jhc8a.apps.googleusercontent.com', // Replace with your actual web client ID
 });
 
 export class AuthService {
