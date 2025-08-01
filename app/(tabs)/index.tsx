@@ -1,106 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Alert,
-  Modal,
-  TouchableOpacity,
+  Image,
+  Animated,
 } from 'react-native';
 import { Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MapPin, CircleCheck as CheckCircle } from 'lucide-react-native';
-
-import {
-  Camera,
-  CameraView,
-  CameraPictureOptions,
-  CameraType,
-  PermissionStatus,
-} from 'expo-camera';
-
+import { MapPin, CheckCircle, Camera } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { LocationService } from '@/services/LocationService';
 import { FirestoreService } from '@/services/FirestoreService';
+import { StorageService } from '@/services/StorageService';
+import { CircularCameraView } from '@/components/CircularCameraView';
 
 export default function PunchInScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState<string | null>(null);
-  const { user } = useAuth();
-
   const [cameraVisible, setCameraVisible] = useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
-  const [cameraType, setCameraType] = useState<CameraType>('front');
-  const cameraRef = useRef<CameraView | null>(null);
-
-  // Request camera permission on mount
-  useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasCameraPermission(status === PermissionStatus.GRANTED);
-    })();
-  }, []);
-
-  // After capturing an image, perform location check-in
-  useEffect(() => {
-    if (!capturedImageUri) return;
-
-    const savePunchIn = async () => {
-      setIsLoading(true);
-      try {
-        if (!user) {
-          Alert.alert('Error', 'User not authenticated');
-          return;
-        }
-
-        const location = await LocationService.getCurrentLocation();
-        if (!location) {
-          Alert.alert('Location Error', 'Could not retrieve location');
-          return;
-        }
-
-        const checkIn = {
-          userId: user.uid,
-          email: user.email,
-          timestamp: new Date(),
-          latitude: location.latitude,
-          longitude: location.longitude,
-          imageUri: capturedImageUri, // Optionally upload to Firebase Storage
-        };
-
-        await FirestoreService.saveCheckIn(checkIn);
-
-        const time = new Date().toLocaleTimeString();
-        setLastCheckIn(time);
-
-        Alert.alert('Check-in Successful!', `Checked in at ${time}`);
-      } catch (err: any) {
-        console.error('Check-in error:', err);
-        Alert.alert('Check-in Failed', err.message || 'Unknown error');
-      } finally {
-        setIsLoading(false);
-        setCapturedImageUri(null);
-      }
-    };
-
-    savePunchIn();
-  }, [capturedImageUri]);
-
-  // Camera control functions
-  const takePicture = async () => {
-    if (cameraRef.current) {
-      const photo = (await cameraRef.current.takePictureAsync({
-        quality: 0.7,
-      } as CameraPictureOptions)) as { uri: string };
-      setCapturedImageUri(photo.uri);
-      setCameraVisible(false);
-    }
-  };
-
-  const toggleCameraType = () => {
-    setCameraType(prev => (prev === 'front' ? 'back' : 'front'));
-  };
+  const { user, userDisplayName, userPhotoURL } = useAuth();
+  
+  // Animation for success feedback
+  const scaleAnim = new Animated.Value(1);
 
   const handlePunchIn = () => {
     if (!user) {
@@ -110,20 +33,91 @@ export default function PunchInScreen() {
     setCameraVisible(true);
   };
 
+  const handlePhotoCapture = async (imageUri: string) => {
+    setCameraVisible(false);
+    setIsLoading(true);
+
+    try {
+      if (!user) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+
+      // Get location
+      const location = await LocationService.getCurrentLocation();
+      if (!location) {
+        Alert.alert('Location Error', 'Could not retrieve location');
+        return;
+      }
+
+      // Upload photo to Firebase Storage
+      const photoURL = await StorageService.uploadCheckInPhoto(user.uid, imageUri);
+
+      // Save check-in data
+      const checkIn = {
+        userId: user.uid,
+        email: user.email || '',
+        userName: userDisplayName,
+        timestamp: new Date(),
+        latitude: location.latitude,
+        longitude: location.longitude,
+        photoURL: photoURL,
+      };
+
+      await FirestoreService.saveCheckIn(checkIn);
+
+      const time = new Date().toLocaleTimeString();
+      setLastCheckIn(time);
+
+      // Success animation
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      Alert.alert('Check-in Successful!', `Checked in at ${time}`);
+    } catch (err: any) {
+      console.error('Check-in error:', err);
+      Alert.alert('Check-in Failed', err.message || 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Student Check-In</Text>
-          <Text style={styles.subtitle}>
-            Tap below to punch in with location and photo
-          </Text>
+          <View style={styles.userGreeting}>
+            {userPhotoURL && (
+              <Image source={{ uri: userPhotoURL }} style={styles.userAvatar} />
+            )}
+            <View>
+              <Text style={styles.greeting}>Hi, {userDisplayName}!</Text>
+              <Text style={styles.subtitle}>Ready to check in?</Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.punchInContainer}>
+        <Animated.View style={[styles.punchInContainer, { transform: [{ scale: scaleAnim }] }]}>
           <View style={styles.iconContainer}>
-            <MapPin size={80} color="#000" />
+            <View style={styles.iconBackground}>
+              <Camera size={60} color="#000000" />
+            </View>
           </View>
+
+          <Text style={styles.punchInTitle}>Tap to Check In</Text>
+          <Text style={styles.punchInDescription}>
+            We'll capture your photo and location for attendance
+          </Text>
 
           <Button
             mode="outlined"
@@ -132,14 +126,15 @@ export default function PunchInScreen() {
             disabled={isLoading}
             style={styles.punchInButton}
             labelStyle={styles.punchInButtonText}
+            icon={() => <MapPin size={20} color="#000000" />}
           >
             {isLoading ? 'Processing...' : 'Punch In'}
           </Button>
-        </View>
+        </Animated.View>
 
         {lastCheckIn && (
           <View style={styles.lastCheckInContainer}>
-            <CheckCircle size={24} color="#000" />
+            <CheckCircle size={24} color="#22c55e" />
             <Text style={styles.lastCheckInText}>
               Last check-in: {lastCheckIn}
             </Text>
@@ -148,95 +143,145 @@ export default function PunchInScreen() {
 
         <View style={styles.infoContainer}>
           <Text style={styles.infoTitle}>How it works:</Text>
-          <Text style={styles.infoText}>
-            • Photo & location will be saved{'\n'}
-            • Data is secure & private{'\n'}
-            • See history in the "History" tab
-          </Text>
+          <View style={styles.infoList}>
+            <Text style={styles.infoItem}>📸 Take a quick selfie</Text>
+            <Text style={styles.infoItem}>📍 Capture your location</Text>
+            <Text style={styles.infoItem}>☁️ Securely store in cloud</Text>
+            <Text style={styles.infoItem}>📊 View history anytime</Text>
+          </View>
         </View>
       </View>
 
-      {/* CAMERA MODAL */}
-      <Modal
-  animationType="slide"
-  visible={cameraVisible}
-  onRequestClose={() => setCameraVisible(false)}
->
-  <View style={styles.cameraContainer}>
-    {hasCameraPermission === null ? (
-      <Text>Requesting camera permission...</Text>
-    ) : hasCameraPermission === false ? (
-      <Text>No access to camera</Text>
-    ) : (
-      <View style={{ flex: 1 }}>
-        <CameraView style={StyleSheet.absoluteFill} facing={cameraType} ref={cameraRef} />
-        <View style={styles.overlayContainer}>
-          <TouchableOpacity style={styles.button} onPress={takePicture}>
-            <Text style={styles.text}>Take Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={toggleCameraType}>
-            <Text style={styles.text}>Flip</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => setCameraVisible(false)}>
-            <Text style={styles.text}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    )}
-  </View>
-</Modal>
-
+      <CircularCameraView
+        visible={cameraVisible}
+        onClose={() => setCameraVisible(false)}
+        onCapture={handlePhotoCapture}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  content: { flex: 1, padding: 24 },
-  header: { marginBottom: 48 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#000', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#666', lineHeight: 24 },
-  punchInContainer: { alignItems: 'center', marginBottom: 48 },
-  iconContainer: { marginBottom: 32 },
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  content: {
+    flex: 1,
+    padding: 24,
+  },
+  header: {
+    marginBottom: 32,
+  },
+  userGreeting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  userAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#000000',
+  },
+  greeting: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666666',
+    marginTop: 2,
+  },
+  punchInContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: '#f0f0f0',
+    borderRadius: 16,
+    backgroundColor: '#fafafa',
+  },
+  iconContainer: {
+    marginBottom: 20,
+  },
+  iconBackground: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#ffffff',
+    borderWidth: 3,
+    borderColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  punchInTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000000',
+    marginBottom: 8,
+  },
+  punchInDescription: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
   punchInButton: {
-    borderColor: '#000',
+    borderColor: '#000000',
     borderWidth: 3,
     paddingVertical: 8,
     paddingHorizontal: 32,
+    backgroundColor: '#ffffff',
   },
-  punchInButtonText: { color: '#000', fontSize: 18, fontWeight: 'bold' },
+  punchInButtonText: {
+    color: '#000000',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   lastCheckInContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 32,
     gap: 8,
+    padding: 16,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#22c55e',
   },
-  lastCheckInText: { fontSize: 16, color: '#000', fontWeight: '500' },
-  infoContainer: { marginTop: 'auto' },
-  infoTitle: { fontSize: 18, fontWeight: 'bold', color: '#000', marginBottom: 12 },
-  infoText: { fontSize: 14, color: '#666', lineHeight: 20 },
-
-  cameraContainer: { flex: 1, backgroundColor: 'black' },
-  camera: { flex: 1 },
-  buttonContainer: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    marginBottom: 50,
+  lastCheckInText: {
+    fontSize: 16,
+    color: '#15803d',
+    fontWeight: '500',
   },
-  overlayContainer: {
-  position: 'absolute',
-  bottom: 50,
-  left: 0,
-  right: 0,
-  flexDirection: 'row',
-  justifyContent: 'space-around',
-  paddingHorizontal: 20,
-},
-
-  button: { padding: 16, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8 },
-  text: { fontSize: 18, color: 'white' },
+  infoContainer: {
+    marginTop: 'auto',
+    padding: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+  },
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000000',
+    marginBottom: 16,
+  },
+  infoList: {
+    gap: 8,
+  },
+  infoItem: {
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 20,
+  },
 });

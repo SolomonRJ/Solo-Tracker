@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPin, Clock } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +11,8 @@ interface CheckInRecord {
   latitude: number;
   longitude: number;
   address?: string;
+  photoURL?: string;
+  userName?: string;
 }
 
 export default function HistoryScreen() {
@@ -67,10 +69,19 @@ export default function HistoryScreen() {
   const renderCheckInItem = ({ item }: { item: CheckInRecord }) => (
     <View style={styles.checkInItem}>
       <View style={styles.checkInHeader}>
-        <View style={styles.iconContainer}>
-          <MapPin size={20} color="#000000" />
+        <View style={styles.photoContainer}>
+          {item.photoURL ? (
+            <Image source={{ uri: item.photoURL }} style={styles.checkInPhoto} />
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <MapPin size={16} color="#666666" />
+            </View>
+          )}
         </View>
         <View style={styles.checkInInfo}>
+          {item.userName && (
+            <Text style={styles.userNameText}>{item.userName}</Text>
+          )}
           <Text style={styles.dateText}>{formatDate(item.timestamp)}</Text>
           <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
         </View>
@@ -188,11 +199,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  iconContainer: {
+  photoContainer: {
     marginRight: 12,
+  },
+  checkInPhoto: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  photoPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   checkInInfo: {
     flex: 1,
+  },
+  userNameText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 2,
   },
   dateText: {
     fontSize: 16,
@@ -205,7 +239,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   locationInfo: {
-    marginLeft: 32,
+    marginLeft: 52,
   },
   coordinatesText: {
     fontSize: 14,
